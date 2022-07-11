@@ -1,0 +1,13 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "todolistwebpart-client-side-solution",
+    "id": "bcfcd2e2-b033-4532-80e6-bceece69198b",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "isDomainIsolated": false
+  },
+  "paths": {
+    "zippedPackage": "solution/todolistwebpart.sppkg"
+  }
+}
