@@ -19,11 +19,10 @@ export interface ITodolistwebpartState {
     activeIndex: number;
     errorMsg: any;
     saveReady: boolean;
-    subtasks: any[];
+    subTask: any[];
     editFlag: boolean;
-    subItem: any;
-    itemSub: any[];
-    taskId: string;
+    tempSubtask: any;
+
 
 
 }
@@ -35,23 +34,23 @@ const REQUIRED = [
     "Status",
     "DueDate"
 ];
-// const LOREM = [
-//     {
-//         Name:'1 kilo mais',
-//         Status:false
+const LOREM = [
+    {
+        Name: '1 kilo mais',
+        Status: false
 
-//     },
-//     {
-//         Name:'1 kilo oil',
-//         Status:false
+    },
+    {
+        Name: '1 kilo oil',
+        Status: false
 
-//     },
-//     {
-//         Name:'1 kilo salt',
-//         Status:false
+    },
+    {
+        Name: '1 kilo salt',
+        Status: false
 
-//     }
-// ];
+    }
+];
 export default class Todolistwebpart extends React.Component<ITodolistwebpartProps, ITodolistwebpartState> {
 
     constructor(props) {
@@ -62,29 +61,26 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
             showModal: false,
             showPanel: false,
 
-
             tempItem: {
                 Title: '',
                 Description: '',
                 Status: 'Not Started',
                 DueDate: new Date(),
             },
-            taskId: null,
+            tempSubtask: {
+                Title: '',
+                Status: 'Not Started',
+                DateCompleted: null,
+                SubtestID: null
+            },
+
             items: [],
             activeItem: null,
             activeIndex: -1,
             errorMsg: {},
             saveReady: false,
-            subtasks: [],
+            subTask: [],
             editFlag: false,
-            itemSub: [],
-            subItem: {
-                Title: '',
-                subTestID: null
-
-            },
-
-
 
         };
     }
@@ -137,31 +133,11 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                     items.push(temp);
                 });
                 this.setState({ items });
-
-                this.componentSubDidMount();
             });
 
     }
-    public async componentSubDidMount(): Promise<void> {
-
-        // //query sp list item
-        // await sp.web.lists.getById('0e626db0-3993-4b09-98ae-1577f717a4e9').items.get()
-        //     .then(res => {
-        //         const itemSub = [];
-        //         res.forEach(item => {
-        //             const temp = {
-        //                 ID: item.ID,
-
-        //                 Title: item.Title,
-        //             };
-        //             itemSub.push(temp);
-        //         });
-        //         this.setState({ itemSub });
-
-        //     });
-    }
     public render(): React.ReactElement<ITodolistwebpartProps> {
-        const { items, showModal, activeItem, activeIndex, tempItem, showPanel, isProcessing, saveReady, errorMsg, subItem, itemSub, subtasks } = this.state;
+        const { items, showModal, subTask, tempSubtask, activeItem, activeIndex, tempItem, showPanel, isProcessing, saveReady, errorMsg } = this.state;
 
         return (
             <div className="ms=Grid ">
@@ -192,9 +168,11 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                                 // this.setState({ items });
 
                                 this.setState({ showPanel: true });
+
                             }}
                         />
                         <br /> <br />
+
                     </div>
                     <div className="ms-Grid-col ms-sm12" >
                         <List
@@ -222,42 +200,33 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                                         <div className="ms-Grid-col ms-sm4">
                                             <div className="ms-Grid-col ms-sm12" style={{ margin: '5px auto' }}>
                                                 <DefaultButton
-                                                    style={{ background: '#00b7c3', width: '100%', padding: '15px 10px' }}
-                                                    iconProps={{ iconName: 'RedEye' }}
+                                                    style={{ background: '#00b7c3' }}
+                                                    iconProps={{ iconName: 'View' }}
                                                     onClick={() => {
-                                                        sp.web.lists.getById('b17045bc-a8aa-44e9-b664-31213dda172e').items.filter("subTestID eq '" + item.ID + "'").get()
-                                                            .then(resultSet => {
-                                                                const itemSub = [];
-                                                                resultSet.forEach(item => {
-                                                                    const temp = {
-                                                                        ID: item.ID,
-                                                                        Title: item.Title,
-                                                                    };
-                                                                    itemSub.push(temp);
-                                                                });
-                                                                this.setState({ itemSub });
-                                                            });
 
                                                         item.DueDate = new Date(item.DueDate);
+
                                                         this.setState({
-                                                            taskId: item.ID,
                                                             tempItem: item,
                                                             showPanel: true,
                                                             editFlag: true
+                                                            // showModal:true,
                                                             // activeItem: item,
-                                                            // activeIndex: index,
-
+                                                            // activeIndex: index
                                                         });
+
+
                                                     }}
+
+
                                                 />
                                             </div>
                                             <br /><br />
                                             <div className="ms-Grid-col ms-sm12" style={{ margin: '5px auto' }}>
                                                 <DefaultButton
-                                                    style={{ background: '#d83b01', width: '100%', padding: '15px 10px' }}
+                                                    style={{ background: '#d83b01' }}
                                                     iconProps={{ iconName: 'Delete' }}
                                                     onClick={() => {
-
 
                                                         this.setState({ isProcessing: true, });
 
@@ -277,8 +246,15 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                                                     }}
                                                     disabled={isProcessing}
                                                 />
+
                                             </div>
+
+
+
                                         </div>
+
+
+
                                     </div>
 
 
@@ -398,24 +374,74 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                             <div className="ms-Grid-col ms-sm12" style={{ margin: '10px 0' }}>
                                 <div>
                                     <PrimaryButton
-                                        text="Add Sub-Task"
+                                        text="add Sub-Task"
                                         onClick={() => {
 
                                             this.setState({
                                                 showModal: true,
 
                                             });
-
-
                                         }}
                                     />
                                     <br /><br />
+
+
                                 </div>
+                            </div>
+                            <div className="ms-Grid-col ms-sm12" >
+                                <List
+                                    items={cloneDeep(this.state.subTask)}
+                                    onRenderCell={(item?: any, index?: number, isScrolling?: boolean) => {
+                                        const d = new Date().toLocaleDateString();
+
+                                        return (
+                                            <div className="ms-Grid-col ms-sm12" style={{ marginBottom: '10px', border: '1px ridge blue' }}>
+
+                                                <div className="ms-Grid-col ms-sm8" >
+
+                                                    <div className="ms-Grid-col ms-sm12" style={item.Status ? { textDecoration: 'line-through' } : {}}>
+                                                        {item.Title}
+                                                    </div>
+                                                    <div className="ms-Grid-col ms-sm12 ">
+                                                        Status: {item.Status != "Not Started" ? "Done" : "Pending"}
+                                                    </div>
+                                                    <div className="ms-Grid-col ms-sm12 ">
+                                                        Date Completed: {item.Status != "Not Started" ? d : "N/A"}
+                                                    </div>
+                                                </div>
+                                                <div className="ms-Grid-col ms-sm4">
+                                                    <div className="ms-Grid-col ms-sm12" style={{ margin: '5px auto' }}>
+                                                        <div className="ms-Grid-col ms-sm2">
+                                                            <Checkbox
+                                                                label="Mark as done"
+                                                                style={{ background: '#00b7c3' }}
+                                                                onChange={(ev, checked: boolean) => {
+                                                                    const temp = this.state.subTask;
+                                                                    temp[index].Status = checked;
+
+                                                                    this.setState({ subTask: temp });
+
+                                                                }}
+                                                                value={item.Status}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    }}
+                                />
+                            </div>
+
+
+                            {/* <div className="ms-Grid-col ms-sm12" >
                                 <List
 
-                                    items={cloneDeep(itemSub)}
+                                    items={cloneDeep(this.state.subTask)}
 
                                     onRenderCell={(item?: any, index?: number, isScrolling?: boolean) => {
+
+                                        const d = new Date().toLocaleDateString();
                                         return (
                                             <div
                                                 className="ms-Grid-col ms-sm12"
@@ -427,65 +453,36 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                                                     </div>
 
                                                 </div>
-
+                                                <div className="ms-Grid-col ms-sm12 ">
+                                                    Status: {item.Status != "Not Started" ? "Done" : "Pending"}
+                                                </div>
+                                                <div className="ms-Grid-col ms-sm12 ">
+                                                    Date Completed: {item.Status != "Not Started" ? d : "N/A"}
+                                                </div>
                                             </div>
-
                                         );
-
                                     }}
-
                                 />
-
-                            </div>
-
-
-
-                            {/* <div  className="ms-Grid-col ms-sm12" >
-       <List
-         items={cloneDeep(LOREM)}
-         onRenderCell={( item?: any, index?: number, isScrolling?: boolean) =>{
-                                  
-           const d = new Date().toDateString();
-                return(
-                     <div className="ms-Grid-col ms-sm12" style={{marginBottom:'10px',border:'1px ridge blue' }}>
-                                        
-                       <div className="ms-Grid-col ms-sm8" >
-                                
-                           <div className="ms-Grid-col ms-sm12" style={item.Status ? {textDecoration:'line-through'} : {}}>  
-                                 Task: {item.Name}
-                               </div>  
-                               <div className="ms-Grid-col ms-sm12" >  
-                                 Status :{item.Status ? "Done": "Pending"}
-                                  </div>  
-
-                                        <div className="ms-Grid-col ms-sm12" >  
-                                         Date completed :{item.Status ? d: "N/A"}
-                                        </div>   
-                                     </div>     
-                                    <div className="ms-Grid-col ms-sm4">
-                                        <div className="ms-Grid-col ms-sm12" style={{margin:'5px auto' }}>
-                                           <div className="ms-Grid-col ms-sm2">
+                            </div> */}
+                            {/* <div className="ms-Grid-col ms-sm12">
+                                    <div className="ms-Grid-col ms-sm12" style={{ margin: " 5px auto" }}>
+                                        <div className="ms-Grid-col ms-sm12">
                                             <Checkbox
-                                            style={{ background:'#00b7c3' }}
-                                            onChange={(ev, checked: boolean) =>{
-                                              const temp = this.state.subTask;
-                                              temp[index].Status = checked ;
+                                                label="Mark as done"
+                                                style={{ background: 'red', width: '100%', padding: '15px' }}
+                                                onChange={(ev, checked: boolean) => {
+                                                    const temp = this.state.subTask;
+                                                    temp[index].Status = checked;
 
-                                              this.setState({subTask: temp});
-
-                                            }}  
-                                            value= {item.Status}                                         
+                                                    this.setState({ subTask: temp });
+                                                }}
+                                                value={item.Status}
                                             />
                                         </div>
-                                 </div>
-                             </div>
-                         </div>
-                      );
-                    }}
-                     />
-                </div> 
-            </div>
-                                       */}
+                                    </div>
+                                </div>
+                            </div> */}
+
 
 
 
@@ -495,115 +492,99 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
 
 
 
+
+
+
                     {this._handleRenderFooter()}
                 </Panel>
 
                 <Dialog
-
                     hidden={!showModal}
-                    modalProps={{ isBlocking: false }}
-                    onDismiss={() => this.setState({ showModal: false, activeItem: null })}
+                    modalProps={{ isBlocking: true }}
+                    onDismiss={() => this.setState({
+                        showModal: false,
+                        tempSubtask: {
+                            Title: '',
+                            Status: 'Not Started',
+                            DateCompleted: null,
+                            SubtestID: null
+                        }, activeIndex: -1
+                    })
+                    }
                     dialogContentProps={{
                         type: DialogType.normal,
                         title: 'Add Sub-Task',
                     }}
                 >
-                    <TextField
-                        label="Title"
-                        value={subItem.Title}
-                        onChanged={(newVal: string) => {
-                            subItem.Title = newVal;
+                    <div className="ms-Grid-col ms-sm12">
+                        <ErrorHandlingField
 
-                            this.setState({ subItem }, () => {
+                            isRequired={true}
+                            label="Title"
+                            errorMessage={errorMsg.Title}
+                            parentClass={"ms-Grid-col ms-sm12"}
 
+                        >
+                            <TextField
+                                value={tempSubtask.Title}
+                                onChanged={(newVal: string) => {
+                                    tempSubtask.Title = newVal;
 
-                            });
-                        }}
-                    />
+                                    this.setState({ tempSubtask }, () => {
+
+                                    });
+
+                                }}
+                            />
+                        </ErrorHandlingField>
+                    </div>
                     <br />
-                    <PrimaryButton
-                        text="ADD"
+                    <div className="ms-Grid-col ms-sm12">
+                        <div className="ms-Grid-col ms-sm4">
+                            <PrimaryButton
+                                text="Save"
+                                style={{ width: "100%" }}
+                                onClick={() => {
+                                    subTask.push(tempSubtask);
 
-                        onClick={async () => {
-                            subItem.subTestID = this.state.taskId.toString();
-                            console.log("sub", subItem);
-                            await sp.web.lists.getById('0e626db0-3993-4b09-98ae-1577f717a4e9').items.add(subItem)
-                                .then(res => {
-                                    // query updates
-                                    itemSub.push(subItem);
-                                    //refresh dom
+                                    this.setState({ showModal: false, subTask }, () => {
+                                        this._checkIsFormReady();
+                                    });
+                                }}
+                            />
+
+
+                        </div>
+                        <br />
+                        <div className="ms-Grid-col ms-sm4">
+                            <DefaultButton
+                                text="Cancel"
+                                style={{ width: "100%" }}
+                                onClick={() => {
                                     this.setState({
-                                        itemSub, showPanel: false, editFlag: false, isProcessing: false,
-                                        subItem: {
+                                        showModal: false,
+                                        tempSubtask: {
                                             Title: '',
+                                            Status: 'Not Started',
+                                            DateCompleted: null,
+                                            SubtestID: null
                                         }
                                     });
-                                });
-
-                            subtasks.push(tempItem);
-
+                                }}
+                            />
 
 
-                            this.setState({ subtasks, showModal: false,/* tempItem: {}*/ }, () => {
-
-                                console.log("state", this.state);
-
-                            });
-
-                        }}
-
-                    />
-
-
-
-
-
-
+                        </div>
+                    </div>
                     {/* <div className='ms-Grid-col ms-sm12'>
                 <span style={{ textAlign:'center' }}>
-                    {activeItem && (S
+                    {activeItem && (
                         <div>
                         <b>Description:</b> {activeItem.Description}
                         </div>
                     )}
                 </span>
             </div> */}
-                    {/* <div  className="ms-Grid-col ms-sm12" >
-                        <List
-                            items={cloneDeep(LOREM)}
-                            onRenderCell={( item?: any, index?: number, isScrolling?: boolean) =>{
-                                  
-                                return(
-                                    <div className="ms-Grid-col ms-sm12" style={{marginBottom:'10px',border:'1px ridge blue' }}>
-                                        
-                                        <div className="ms-Grid-col ms-sm8" >
-                                    
-                                          <div className="ms-Grid-col ms-sm12" style={item.Status ? {textDecoration:'line-through'} : {}}>  
-                                         {item.Name}
-                                        </div>    
-                                     </div>     
-                                    <div className="ms-Grid-col ms-sm4">
-                                        <div className="ms-Grid-col ms-sm12" style={{margin:'5px auto' }}>
-                                           <div className="ms-Grid-col ms-sm2">
-                                            <Checkbox
-                                            style={{ background:'#00b7c3' }}
-                                            onChange={(ev, checked: boolean) =>{
-                                              const temp = this.state.subTask;
-                                              temp[index].Status = checked ;
-
-                                              this.setState({subTask: temp});
-
-                                            }}  
-                                            value= {item.Status}                                         
-                                            />
-                                        </div>
-                                 </div>
-                             </div>
-                         </div>
-                      );
-                    }}
-                     />
-                </div>  */}
 
 
                 </Dialog>
