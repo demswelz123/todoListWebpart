@@ -62,13 +62,16 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                 Description: '',
                 Status: 'Not Started',
                 DueDate: new Date(),
+                subTask: []
+
             },
             tempSubtask: {
                 Title: '',
                 Status: 'Not Started',
                 DateCompleted: null,
-                subTask: [],
-                SubtestID: null
+                subTestID: null
+
+
             },
 
             items: [],
@@ -162,23 +165,21 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
         const { items, tempItem, editFlag } = this.state;
 
         this.setState({ isProcessing: true });
-
         if (editFlag) {
             const OBJ = {
                 Title: tempItem.Title,
                 Description: tempItem.Description,
                 Status: tempItem.Status,
-                DueDate: tempItem.DueDate.toLocalString(),
+                DueDate: tempItem.DueDate.toLocaleString(),
 
             };
-
             await sp.web.lists.getById('701bcceb-c127-4065-8607-390687788696').items.getById(tempItem.ID)
                 .update(OBJ).then(async res => {
-
                     // save sub-task and check                                        
-                    const subs = tempItem.subTask || [];
+                    const subs = tempItem.subTask;
+
                     for (const item of subs) {
-                        item['SubTestID'] = tempItem.ID.toLocalString();
+                        item['subTestID'] = tempItem.ID.toString();
 
                         if (item.ID) {
                             await sp.web.lists.getById('0e626db0-3993-4b09-98ae-1577f717a4e9').items.getById(item.ID)
@@ -186,16 +187,10 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                         } else {
                             await sp.web.lists.getById('0e626db0-3993-4b09-98ae-1577f717a4e9').items.add(item)
                                 .then(_ => {
-
                                     item['ID'] = _.data.ID;
-
-
                                 });
                         }
-
-
                     }
-
                     //query updates
                     const temp = items.map((i, n) => {
                         if (i.ID == tempItem.ID) {
@@ -207,6 +202,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                         }
 
                     });
+                    // refresh dom
                     this.setState({
                         items: temp, showPanel: false, editFlag: false, isProcessing: false,
                         tempItem: {
@@ -220,12 +216,12 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                 });
 
         } else {
+
             const OBJ = {
                 Title: tempItem.Title,
                 Description: tempItem.Description,
                 Status: tempItem.Status,
-                DueDate: tempItem.DueDate.toLocalString(),
-
+                DueDate: tempItem.DueDate.toLocaleString(),
             };
 
             // save to sp list
@@ -233,11 +229,11 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                 .then(async res => {
 
                     // check for subtask
-                    const subs = tempItem.subTask;
+                    const subs = tempItem.subTask || [];
                     const resID = res.data.ID;
 
                     for (const item of subs) {
-                        item['SubTestID'] = resID.toLocalString();
+                        item['subTestID'] = resID.tostring();
 
                         await sp.web.lists.getById('0e626db0-3993-4b09-98ae-1577f717a4e9').items.add(item)
                             .then(_ => {
@@ -249,7 +245,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                     }
                     //query updates
                     tempItem.ID = resID;
-                    tempItem.subTask;
+                    tempItem.subTask = subs;
                     items.push(tempItem);
 
                     //refresh dome
@@ -261,7 +257,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                             Description: '',
                             Status: 'Not Started',
                             DueDate: new Date(),
-                            subTask: []
+                            // subTask: []
                         }
                     });
                 });
@@ -271,7 +267,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
     }
 
     private _viewItem = async (item: any, index: number) => {
-        const { items } = this.state
+        const { items } = this.state;
 
         item.DueDate = new Date(item.DueDate);
 
@@ -290,7 +286,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                             Title: i.Title,
                             Status: i.Status,
                             DateCompleted: i.DateCompleted ? new Date(i.DateCompleted) : null,
-                            SubtestID: i.subTestID
+                            subTestID: i.subTestID
 
                         });
 
@@ -519,7 +515,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                         </PivotItem>
                         <br />
 
-                        <PivotItem headerText="Subtasks">
+                        <PivotItem headerText="SubTask">
 
                             <div className="ms-Grid-col ms-sm12" style={{ margin: '10px 0' }}>
                                 <div>
@@ -660,7 +656,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                             Title: '',
                             Status: 'Not Started',
                             DateCompleted: null,
-                            SubtestID: null
+                            subTestID: null
                         }, activeIndex: -1
                     })
                     }
@@ -706,7 +702,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                                             Title: '',
                                             Status: 'Not Started',
                                             DateCompleted: null,
-                                            SubtestID: null
+                                            subTestID: null
                                         }
                                     }, () => {
                                         this._checkIsFormReady();
@@ -730,7 +726,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                                             Title: '',
                                             Status: 'Not Started',
                                             DateCompleted: null,
-                                            SubtestID: null
+                                            subTestID: null
                                         }
                                     });
                                 }}
