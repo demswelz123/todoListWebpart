@@ -2,7 +2,7 @@ import * as React from 'react';
 import styles from './Todolistwebpart.module.scss';
 import { ITodolistwebpartProps } from './ITodolistwebpartProps';
 import { cloneDeep, escape, update } from '@microsoft/sp-lodash-subset';
-import { DayOfWeek, PrimaryButton, List, DefaultButton, getIconClassName, DialogType, ActivityItem, Dialog, Panel, TextField, Dropdown, IDropdownOption, DatePicker, PanelType, Spinner, SpinnerSize, Pivot, PivotItem, PivotLinkFormat, Checkbox } from 'office-ui-fabric-react';
+import { DayOfWeek, PrimaryButton, List, DefaultButton, getIconClassName, DialogType, ActivityItem, Dialog, Panel, TextField, Dropdown, IDropdownOption, DatePicker, PanelType, Spinner, SpinnerSize, Pivot, PivotItem, PivotLinkFormat, Checkbox, Async } from 'office-ui-fabric-react';
 import { Items } from '@pnp/sp';
 
 import { sp } from '@pnp/sp';
@@ -19,12 +19,8 @@ export interface ITodolistwebpartState {
     activeIndex: number;
     errorMsg: any;
     saveReady: boolean;
-    subTask: any[];
     editFlag: boolean;
     tempSubtask: any;
-
-
-
 }
 
 
@@ -71,6 +67,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                 Title: '',
                 Status: 'Not Started',
                 DateCompleted: null,
+                subTask: [],
                 SubtestID: null
             },
 
@@ -79,7 +76,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
             activeIndex: -1,
             errorMsg: {},
             saveReady: false,
-            subTask: [],
+
             editFlag: false,
 
         };
@@ -113,7 +110,19 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
         this.setState({ errorMsg, saveReady: flag });
 
     }
+    private checkSubtaskReady = () => {
+        let { tempItem } = this.state;
+        let flag = true;
 
+        tempItem.subTask.forEach(i => {
+
+            if (!i.Title || (typeof i.Title === 'string' && i.Title.trim() === '')) {
+                flag = false;
+                return;
+            }
+        });
+        this.setState({ saveReady: flag });
+    }
 
     public componentDidMount(): void {
         sp.web.lists.getById('701bcceb-c127-4065-8607-390687788696').items.get()
@@ -136,8 +145,175 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
             });
 
     }
+    private _onCancel = () => {
+        this.setState({
+            showPanel: false, saveReady: false,
+            tempItem: {
+                Title: '',
+                Description: '',
+                Status: 'Not Started',
+                DueDate: new Date()
+
+            },
+        });
+    }
+
+    private _onSave = async () => {
+        const { items, tempItem, editFlag } = this.state;
+
+        this.setState({ isProcessing: true });
+
+        if (editFlag) {
+            const OBJ = {
+                Title: tempItem.Title,
+                Description: tempItem.Description,
+                Status: tempItem.Status,
+                DueDate: tempItem.DueDate.toLocalString(),
+
+            };
+
+            await sp.web.lists.getById('701bcceb-c127-4065-8607-390687788696').items.getById(tempItem.ID)
+                .update(OBJ).then(async res => {
+
+                    // save sub-task and check                                        
+                    const subs = tempItem.subTask || [];
+                    for (const item of subs) {
+                        item['SubTestID'] = tempItem.ID.toLocalString();
+
+                        if (item.ID) {
+                            await sp.web.lists.getById('0e626db0-3993-4b09-98ae-1577f717a4e9').items.getById(item.ID)
+                                .update(item);
+                        } else {
+                            await sp.web.lists.getById('0e626db0-3993-4b09-98ae-1577f717a4e9').items.add(item)
+                                .then(_ => {
+
+                                    item['ID'] = _.data.ID;
+
+
+                                });
+                        }
+
+
+                    }
+
+                    //query updates
+                    const temp = items.map((i, n) => {
+                        if (i.ID == tempItem.ID) {
+                            return tempItem;
+
+                        } else {
+                            return i;
+
+                        }
+
+                    });
+                    this.setState({
+                        items: temp, showPanel: false, editFlag: false, isProcessing: false,
+                        tempItem: {
+                            Title: '',
+                            Description: '',
+                            Status: 'Not Started',
+                            DueDate: new Date()
+
+                        }
+                    });
+                });
+
+        } else {
+            const OBJ = {
+                Title: tempItem.Title,
+                Description: tempItem.Description,
+                Status: tempItem.Status,
+                DueDate: tempItem.DueDate.toLocalString(),
+
+            };
+
+            // save to sp list
+            await sp.web.lists.getById('701bcceb-c127-4065-8607-390687788696').items.add(OBJ)
+                .then(async res => {
+
+                    // check for subtask
+                    const subs = tempItem.subTask;
+                    const resID = res.data.ID;
+
+                    for (const item of subs) {
+                        item['SubTestID'] = resID.toLocalString();
+
+                        await sp.web.lists.getById('0e626db0-3993-4b09-98ae-1577f717a4e9').items.add(item)
+                            .then(_ => {
+
+                                item['ID'] = _.data.ID;
+
+
+                            });
+                    }
+                    //query updates
+                    tempItem.ID = resID;
+                    tempItem.subTask;
+                    items.push(tempItem);
+
+                    //refresh dome
+
+                    this.setState({
+                        items, showPanel: false, editFlag: false, isProcessing: false,
+                        tempItem: {
+                            Title: '',
+                            Description: '',
+                            Status: 'Not Started',
+                            DueDate: new Date(),
+                            subTask: []
+                        }
+                    });
+                });
+        }
+
+
+    }
+
+    private _viewItem = async (item: any, index: number) => {
+        const { items } = this.state
+
+        item.DueDate = new Date(item.DueDate);
+
+        // sandBoxing
+        //CALL TO API 
+
+        if (!item.subTask || item.subTask.lenght == 0) {
+
+            const temp = [];
+            await sp.web.lists.getById('0e626db0-3993-4b09-98ae-1577f717a4e9').items
+                .filter(`subTestID eq ${item.ID}`).get().then(res => {
+                    res.forEach(i => {
+
+                        temp.push({
+                            ID: i.ID,
+                            Title: i.Title,
+                            Status: i.Status,
+                            DateCompleted: i.DateCompleted ? new Date(i.DateCompleted) : null,
+                            SubtestID: i.subTestID
+
+                        });
+
+                    });
+                    item.subTask = temp;
+                    items[index] = item;
+                });
+        }
+
+
+        this.setState({
+            items,
+            tempItem: item,
+            showPanel: true,
+            editFlag: true
+            // showModal:true,
+            // activeItem: item,
+            // activeIndex: index
+        });
+
+    }
     public render(): React.ReactElement<ITodolistwebpartProps> {
-        const { items, showModal, subTask, tempSubtask, activeItem, activeIndex, tempItem, showPanel, isProcessing, saveReady, errorMsg } = this.state;
+        const { items, showModal, tempSubtask, activeItem, activeIndex, tempItem, showPanel, isProcessing, saveReady, errorMsg } = this.state;
 
         return (
             <div className="ms=Grid ">
@@ -154,18 +330,6 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                         <PrimaryButton
                             text="ADD ITEM"
                             onClick={() => {
-                                // static
-                                // const item={
-                                //     Task: ' test',
-                                //     Description: ' "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."',
-                                //     Status:' not started',
-                                //     DueDate: new Date().toLocaleString()
-
-                                // };   
-
-                                // items.push(item);
-
-                                // this.setState({ items });
 
                                 this.setState({ showPanel: true });
 
@@ -202,21 +366,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                                                 <DefaultButton
                                                     style={{ background: '#00b7c3' }}
                                                     iconProps={{ iconName: 'View' }}
-                                                    onClick={() => {
-
-                                                        item.DueDate = new Date(item.DueDate);
-
-                                                        this.setState({
-                                                            tempItem: item,
-                                                            showPanel: true,
-                                                            editFlag: true
-                                                            // showModal:true,
-                                                            // activeItem: item,
-                                                            // activeIndex: index
-                                                        });
-
-
-                                                    }}
+                                                    onClick={() => this._viewItem(item, index)}
 
 
                                                 />
@@ -273,7 +423,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                     isOpen={showPanel}
                     onOuterClick={() => { }}
                     type={PanelType.medium}
-                    onDismiss={() => this.setState({ showPanel: false })}
+                    onDismiss={this._onCancel}
                 >
                     {this._handleRenderHeader()}
 
@@ -390,7 +540,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                             </div>
                             <div className="ms-Grid-col ms-sm12" >
                                 <List
-                                    items={cloneDeep(this.state.subTask)}
+                                    items={cloneDeep(tempItem.subTask)}
                                     onRenderCell={(item?: any, index?: number, isScrolling?: boolean) => {
                                         const d = new Date().toLocaleDateString();
 
@@ -399,11 +549,11 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
 
                                                 <div className="ms-Grid-col ms-sm8" >
 
-                                                    <div className="ms-Grid-col ms-sm12" style={item.Status ? { textDecoration: 'line-through' } : {}}>
+                                                    <div className="ms-Grid-col ms-sm12" style={item.Status != "Not Started" ? { textDecoration: 'line-through' } : {}}>
                                                         {item.Title}
                                                     </div>
                                                     <div className="ms-Grid-col ms-sm12 ">
-                                                        Status: {item.Status != "Not Started" ? "Done" : "Pending"}
+                                                        Status: {item.Status != "Not Started" ? "Done" : "Not Started"}
                                                     </div>
                                                     <div className="ms-Grid-col ms-sm12 ">
                                                         Date Completed: {item.Status != "Not Started" ? d : "N/A"}
@@ -413,16 +563,19 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                                                     <div className="ms-Grid-col ms-sm12" style={{ margin: '5px auto' }}>
                                                         <div className="ms-Grid-col ms-sm2">
                                                             <Checkbox
-                                                                label="Mark as done"
+                                                                label={item.Status == "Not Started" ? "Mark as done" : "Mark as undone"}
                                                                 style={{ background: '#00b7c3' }}
                                                                 onChange={(ev, checked: boolean) => {
-                                                                    const temp = this.state.subTask;
-                                                                    temp[index].Status = checked;
+                                                                    const temp = tempItem.subTask;
+                                                                    temp[index].Status = checked ? "Done" : "Not Started";
+                                                                    tempItem.subTask = temp;
 
-                                                                    this.setState({ subTask: temp });
+                                                                    this.setState({ tempItem }, () => {
+                                                                        this.checkSubtaskReady();
+                                                                    });
 
                                                                 }}
-                                                                value={item.Status}
+                                                                checked={item.Status == "Done" ? true : false}
                                                             />
                                                         </div>
                                                     </div>
@@ -531,6 +684,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                                     tempSubtask.Title = newVal;
 
                                     this.setState({ tempSubtask }, () => {
+                                        this.checkSubtaskReady();
 
                                     });
 
@@ -545,11 +699,20 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                                 text="Save"
                                 style={{ width: "100%" }}
                                 onClick={() => {
-                                    subTask.push(tempSubtask);
-
-                                    this.setState({ showModal: false, subTask }, () => {
+                                    tempItem.subTask.push(tempSubtask);
+                                    this.setState({
+                                        showModal: false, tempItem,
+                                        tempSubtask: {
+                                            Title: '',
+                                            Status: 'Not Started',
+                                            DateCompleted: null,
+                                            SubtestID: null
+                                        }
+                                    }, () => {
                                         this._checkIsFormReady();
+
                                     });
+
                                 }}
                             />
 
@@ -623,51 +786,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                         <PrimaryButton
                             text="Save"
                             style={{ width: '50%', marginTop: '3%' }}
-                            onClick={async () => {
-                                this.setState({ isProcessing: true });
-
-                                if (editFlag) {
-
-                                    await sp.web.lists.getById('701bcceb-c127-4065-8607-390687788696').items.getById(tempItem.ID)
-                                        .update(tempItem).then(res => {
-                                            const temp = items.map((i, n) => {
-                                                if (i.ID == tempItem.ID) {
-                                                    return tempItem;
-
-                                                } else {
-                                                    return i;
-
-                                                }
-
-                                            });
-                                            this.setState({
-                                                items: temp, showPanel: false, editFlag: false, isProcessing: false,
-                                                tempItem: {
-                                                    Title: '',
-                                                    Description: '',
-                                                    Status: 'Not Started',
-                                                    DueDate: new Date()
-                                                }
-                                            });
-                                        });
-
-                                } else {
-                                    await sp.web.lists.getById('701bcceb-c127-4065-8607-390687788696').items.add(tempItem).then(res => {
-                                        items.push(tempItem);
-                                        this.setState({
-                                            items, showPanel: false, editFlag: false, isProcessing: false,
-                                            tempItem: {
-                                                Title: '',
-                                                Description: '',
-                                                Status: 'Not Started',
-                                                DueDate: new Date()
-                                            }
-                                        });
-                                    });
-                                }
-
-
-                            }}
+                            onClick={this._onSave}
                             disabled={!saveReady || isProcessing}
 
                         >
@@ -687,18 +806,7 @@ export default class Todolistwebpart extends React.Component<ITodolistwebpartPro
                         style={{ width: '40%', marginLeft: '55%', marginTop: '-32px' }}
 
                         text="Cancel"
-                        onClick={() => {
-                            this.setState({
-                                showPanel: false, editFlag: false, tempItem: {
-                                    tempItem: {
-                                        Title: '',
-                                        Description: '',
-                                        Status: 'Not Started',
-                                        DueDate: new Date()
-                                    }
-                                }
-                            });
-                        }}
+                        onClick={this._onCancel}
                         disabled={isProcessing}
                     />
                 </div>
